@@ -7,8 +7,8 @@
 <meta name="description" content="Registra tus gastos, ingresos, ahorros y tarjetas en segundos.">
 <meta name="theme-color" content="#0f766e">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -194,8 +194,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:10px
 <div id="sheetWrap" class="sheet-wrap" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="vendor/chart.umd.min.js"></script>
-<script src="vendor/supabase.js"></script>
+<script src="chart.umd.min.js"></script>
+<script src="supabase.js"></script>
 <script src="config.js"></script>
 <script>
 "use strict";
@@ -776,7 +776,7 @@ function vAcceso() {
     };
   });
   return `<div class="acceso">
-    <img src="icons/icon-192.png" alt="" width="72" height="72" style="border-radius:18px;display:block;margin:28px auto 10px">
+    <img src="icon-192.png" alt="" width="72" height="72" style="border-radius:18px;display:block;margin:28px auto 10px">
     <h1 style="text-align:center;margin:0 0 4px;font-size:24px">Mis Finanzas</h1>
     <div class="small muted" style="text-align:center;margin-bottom:18px">Tus gastos, ingresos, ahorros y tarjetas en un solo lugar.</div>
     <section class="card">
@@ -1742,7 +1742,7 @@ async function descargar(nombre, blob) {
 }
 function cargarScript(src) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
 async function excel() {
-  if (!window.ExcelJS) await cargarScript('vendor/exceljs.min.js');
+  if (!window.ExcelJS) await cargarScript('exceljs.min.js');
   const c = C(), R = calc(hoy().slice(0, 7)), wb = new ExcelJS.Workbook(); wb.creator = 'Mis Finanzas';
   const NAVY = 'FF0F766E', F = { name: 'Arial', size: 10 }, M = '$#,##0;-$#,##0;"-"', P = '0.0%', DF = 'dd-mmm-yy';
   const toD = s => { if (!s) return null; const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
