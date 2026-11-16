@@ -1,6 +1,6 @@
 // Proxy de cotizaciones de Yahoo Finance para "Mis Inversiones".
-// Supabase Edge Function (Deno). Uso: GET ...?s=ES=F,AAPL,AMXL.MX
-// Respuesta: { "ES=F": { precio, previo, moneda, nombre }, ... }
+// Supabase Edge Function (Deno). Uso: GET ...?s=AAPL,AMXL.MX
+// Respuesta: { "AAPL": { precio, previo, moneda, nombre }, ... }
 // Solo lee precios públicos; no guarda nada ni necesita llaves.
 
 const CORS = {

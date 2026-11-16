@@ -1,6 +1,6 @@
 # Proxy de precios (opcional)
 
-Yahoo Finance tiene precios de **futuros** (ES=F, NQ=F, GC=F…), **Bolsa Mexicana** (AMXL.MX, NAFTRAC.MX…),
+Yahoo Finance tiene precios de la **Bolsa Mexicana** (AMXL.MX, NAFTRAC.MX…),
 acciones y ETFs de casi cualquier bolsa, pero no permite que una página web los pida directamente.
 Este pequeño intermediario lo resuelve. Es gratis en el plan Free de Supabase.
 
@@ -22,7 +22,7 @@ solo consulta precios públicos.
    supabase functions deploy cotizaciones --no-verify-jwt --project-ref TU_REF
    ```
    `TU_REF` es lo que va antes de `.supabase.co` en la URL de tu proyecto.
-5. Prueba en el navegador: `https://TU_REF.supabase.co/functions/v1/cotizaciones?s=ES=F,AAPL`
+5. Prueba en el navegador: `https://TU_REF.supabase.co/functions/v1/cotizaciones?s=AMXL.MX,AAPL`
 6. Pega esa URL (sin `?s=...`) en **Mis Inversiones → Ajustes → URL de tu proxy**.
 
 > Alternativa sin terminal: en el panel de Supabase → Edge Functions → *Deploy a new function* →

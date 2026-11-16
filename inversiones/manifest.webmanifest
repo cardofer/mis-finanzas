@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Mis Inversiones",
   "short_name": "Inversiones",
-  "description": "Da seguimiento a tus acciones, ETFs, futuros y criptomonedas con precios reales.",
+  "description": "Da seguimiento a tus acciones, ETFs y criptomonedas con precios reales.",
   "lang": "es-MX",
   "start_url": "./",
   "scope": "./",

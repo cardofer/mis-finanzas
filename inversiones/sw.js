@@ -1,6 +1,6 @@
 // Mis Inversiones: guarda la app en el teléfono para que abra sin internet.
 // Solo maneja sus propios archivos; nunca guarda en caché las respuestas de precios.
-const CACHE = 'mis-inversiones-v1';
+const CACHE = 'mis-inversiones-v2';
 const ARCHIVOS = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'chart.umd.min.js', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('mis-inversiones-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

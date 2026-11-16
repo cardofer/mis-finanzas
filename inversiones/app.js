@@ -4,7 +4,7 @@
 
 /* ───────────── Estado y almacenamiento ───────────── */
 const LKEY = 'misInversiones.v1';
-const CLASES = { accion: 'Acción', etf: 'ETF', futuro: 'Futuro', cripto: 'Cripto', otro: 'Otro' };
+const CLASES = { accion: 'Acción', etf: 'ETF', cripto: 'Cripto', otro: 'Otro' };
 const COLORES = ['#4338ca', '#0891b2', '#16a34a', '#ea580c', '#db2777', '#ca8a04', '#7c3aed', '#0d9488', '#dc2626', '#64748b'];
 const AUTO_MS = 60_000;
 
@@ -111,19 +111,18 @@ function precioDe(P) {
 }
 
 function valuar(P) {
-  const base = D.cfg.base, fut = P.clase === 'futuro', m = P.mult;
+  const base = D.cfg.base, m = P.mult;
   const pr = P.q !== 0 ? precioDe(P) : null;
-  const costoL = fut ? 0 : P.avg * P.q * m;                       // capital invertido (moneda del activo)
+  const costoL = P.avg * P.q * m;                                  // capital invertido (moneda del activo)
   const pnlL = pr ? (pr.p - P.avg) * P.q * m : 0;                  // ganancia no realizada
-  const valorL = pr ? (fut ? pnlL : pr.p * P.q * m) : costoL;      // futuros: cuenta solo su P&L
+  const valorL = pr ? pr.p * P.q * m : costoL;
   const hoyL = pr && pr.prev ? (pr.p - pr.prev) * P.q * m : 0;
   const c = v => conv(v, P.moneda, base);
   return {
-    ...P, pr, fut, sinPrecio: P.q !== 0 && !pr,
+    ...P, pr, sinPrecio: P.q !== 0 && !pr,
     costo: c(costoL), valor: c(valorL), pnl: c(pnlL), hoy: c(hoyL), realizadoB: c(P.realizado),
     pnlPct: pr && P.avg ? (pr.p - P.avg) / P.avg * Math.sign(P.q) : null,
     hoyPct: pr && pr.prev ? (pr.p - pr.prev) / pr.prev : null,
-    nocional: pr ? c(pr.p * Math.abs(P.q) * m) : null,
   };
 }
 
@@ -131,10 +130,8 @@ function resumen(ps) {
   const abiertas = ps.filter(p => p.q !== 0);
   const s = k => abiertas.reduce((a, p) => a + (isFinite(p[k]) ? p[k] : 0), 0);
   const valor = s('valor'), costo = s('costo'), pnl = s('pnl'), hoyV = s('hoy');
-  // El % se mide contra el capital invertido, así que excluye futuros (no tienen capital invertido).
-  const pnlSinFut = abiertas.filter(p => !p.fut).reduce((a, p) => a + (isFinite(p.pnl) ? p.pnl : 0), 0);
   const realizado = ps.reduce((a, p) => a + (isFinite(p.realizadoB) ? p.realizadoB : 0), 0);
-  return { valor, costo, pnl, hoy: hoyV, realizado, pnlPct: costo ? pnlSinFut / costo : null, conFut: abiertas.some(p => p.fut), hoyPct: valor - hoyV ? hoyV / (valor - hoyV) : null, abiertas };
+  return { valor, costo, pnl, hoy: hoyV, realizado, pnlPct: costo ? pnl / costo : null, hoyPct: valor - hoyV ? hoyV / (valor - hoyV) : null, abiertas };
 }
 
 /* ───────────── Precios reales ───────────── */
@@ -199,8 +196,8 @@ async function preciosFinnhub(ps) {
   return fallos;
 }
 
-// Símbolo al estilo Yahoo Finance: los futuros llevan "=F" (ES → ES=F).
-const simYahoo = P => P.clase === 'futuro' && !/[=.]/.test(P.simbolo) ? P.simbolo + '=F' : P.simbolo;
+// Símbolo tal como lo usa Yahoo Finance (ej. AAPL, AMXL.MX).
+const simYahoo = P => P.simbolo;
 
 async function preciosProxy(ps) {
   const url = D.cfg.proxyUrl.trim();
@@ -232,7 +229,7 @@ async function actualizarPrecios({ silencioso = false } = {}) {
     await actualizarFx();
     const cripto = ps.filter(p => p.clase === 'cripto');
     const mercado = ps.filter(p => p.clase !== 'cripto');
-    // Finnhub (gratis) cubre acciones y ETFs de EE. UU.; lo demás (futuros, BMV .MX, etc.) va al proxy de Yahoo.
+    // Finnhub (gratis) cubre acciones y ETFs de EE. UU.; lo demás (BMV .MX, otras bolsas) va al proxy de Yahoo.
     const usaFinn = D.cfg.finnhubKey.trim() ? mercado.filter(p => (p.clase === 'accion' || p.clase === 'etf') && !p.simbolo.includes('.')) : [];
     const resto = mercado.filter(p => !usaFinn.includes(p));
     const [fCripto, fFinn] = await Promise.all([preciosCripto(cripto), preciosFinnhub(usaFinn)]);
@@ -265,15 +262,15 @@ function render() {
   if (UI.vista === 'ajustes') renderAjustes();
 }
 
-function icono(P) { return esc(P.simbolo.replace(/=F$/, '').slice(0, 5)); }
+function icono(P) { return esc(P.simbolo.slice(0, 5)); }
 
 function filaPos(P) {
   const sub = P.q === 0
     ? `Cerrada · realizado <span class="${cls(P.realizadoB)}">${signo(P.realizadoB)}</span>`
-    : `${cant(P.q)}${P.fut ? ' contr.' : ''} · prom. ${money(P.avg, P.moneda)}${P.pr ? ' · ' + money(P.pr.p, P.moneda) : ''}`;
+    : `${cant(P.q)} · prom. ${money(P.avg, P.moneda)}${P.pr ? ' · ' + money(P.pr.p, P.moneda) : ''}`;
   const der = P.q === 0 ? '' : P.sinPrecio
     ? `<b>${money(P.valor)}</b><span class="badge warn">sin precio</span>`
-    : `<b>${P.fut ? signo(P.valor) : money(P.valor)}</b><span class="small ${cls(P.pnl)}">${signo(P.pnl)} ${P.pnlPct != null ? '(' + pct(P.pnlPct) + ')' : ''}</span>`;
+    : `<b>${money(P.valor)}</b><span class="small ${cls(P.pnl)}">${signo(P.pnl)} ${P.pnlPct != null ? '(' + pct(P.pnlPct) + ')' : ''}</span>`;
   return `<div class="pos" data-k="${esc(P.k)}">
     <div class="ico">${icono(P)}</div>
     <div class="mid"><b>${esc(P.simbolo)}<span class="badge">${CLASES[P.clase]}</span>${P.pr && P.pr.fuente === 'manual' ? '<span class="badge">manual</span>' : ''}</b>
@@ -287,7 +284,7 @@ function renderPortafolio() {
   const ps = posiciones(), r = resumen(ps), b = D.cfg.base;
   if (!D.ops.length) {
     el.innerHTML = `<div class="card vacio"><div class="big">📊</div><h2>Empieza tu portafolio</h2>
-      <p class="muted">Registra cada compra o venta de acciones, ETFs, futuros o criptomonedas. La app calcula tu costo promedio y valúa todo con precios reales.</p>
+      <p class="muted">Registra cada compra o venta de acciones, ETFs o criptomonedas. La app calcula tu costo promedio y valúa todo con precios reales.</p>
       <button class="btn" data-nueva>Registrar primera operación</button></div>${avisoFuentes(ps)}`;
     return;
   }
@@ -304,7 +301,7 @@ function renderPortafolio() {
       <div class="${cls(r.hoy)} small">${signo(r.hoy)} hoy ${r.hoyPct != null ? '(' + pct(r.hoyPct) + ')' : ''}</div>
       <div class="kpis">
         <div class="kpi"><span>Invertido</span><b>${money(r.costo, b, 2)}</b></div>
-        <div class="kpi"><span>Ganancia no realizada</span><b class="${cls(r.pnl)}">${signo(r.pnl)}</b><span class="${cls(r.pnl)}">${pct(r.pnlPct)}${r.conFut ? ' sin futuros' : ''}</span></div>
+        <div class="kpi"><span>Ganancia no realizada</span><b class="${cls(r.pnl)}">${signo(r.pnl)}</b><span class="${cls(r.pnl)}">${pct(r.pnlPct)}</span></div>
         <div class="kpi"><span>Ganancia realizada</span><b class="${cls(r.realizado)}">${signo(r.realizado)}</b><span>neto de comisiones</span></div>
       </div>
       <div class="tiny muted" style="margin-top:10px">Precios ${haceCuanto(precioTs)}${D.fx.USDMXN ? ` · USD/MXN ${D.fx.USDMXN.toFixed(4)}` : ''}</div>
@@ -313,7 +310,6 @@ function renderPortafolio() {
       <div class="fila-tit"><h2>Distribución</h2>
         <div class="seg"><button data-graf="activo" class="${UI.grafica === 'activo' ? 'on' : ''}">Activo</button><button data-graf="clase" class="${UI.grafica === 'clase' ? 'on' : ''}">Tipo</button></div></div>
       <div class="chart-box"><canvas id="chDist"></canvas></div>
-      ${abiertas.some(p => p.fut) ? '<div class="tiny muted" style="margin-top:6px">Los futuros no aparecen aquí: solo suman su ganancia o pérdida al total.</div>' : ''}
     </div>` : ''}
     ${Object.keys(D.hist).length > 1 ? `<div class="card"><h2>Evolución</h2><div class="chart-box"><canvas id="chHist"></canvas></div>
       <div class="tiny muted">Se guarda un punto por día cada vez que se actualizan los precios.</div></div>` : ''}
@@ -328,7 +324,7 @@ function avisoFuentes(ps) {
   const necesita = ps.some(p => p.q !== 0 && p.clase !== 'cripto' && D.manual[p.k] == null);
   if (!D.ops.length) return '';
   if (!necesita || D.cfg.finnhubKey.trim() || D.cfg.proxyUrl.trim()) return '';
-  return `<div class="aviso">Para ver precios reales de acciones, ETFs y futuros, agrega una fuente de datos gratuita. <button data-ir="ajustes">Configurar</button></div>`;
+  return `<div class="aviso">Para ver precios reales de acciones y ETFs, agrega una fuente de datos gratuita. <button data-ir="ajustes">Configurar</button></div>`;
 }
 
 function graficas(abiertas) {
@@ -339,7 +335,7 @@ function graficas(abiertas) {
   const dist = $('#chDist');
   if (dist) {
     const g = {};
-    abiertas.filter(p => !p.fut && p.valor > 0).forEach(p => { const k = UI.grafica === 'clase' ? CLASES[p.clase] : p.simbolo; g[k] = (g[k] || 0) + p.valor; });
+    abiertas.filter(p => p.valor > 0).forEach(p => { const k = UI.grafica === 'clase' ? CLASES[p.clase] : p.simbolo; g[k] = (g[k] || 0) + p.valor; });
     let ent = Object.entries(g).sort((a, b) => b[1] - a[1]);
     if (ent.length > 9) ent = [...ent.slice(0, 8), ['Otros', ent.slice(8).reduce((a, x) => a + x[1], 0)]];
     const tot = ent.reduce((a, x) => a + x[1], 0);
@@ -390,7 +386,7 @@ function renderAjustes() {
       <label for="ajFinn"><b>Acciones y ETFs de EE. UU.</b> — llave gratuita de Finnhub</label>
       <input id="ajFinn" value="${esc(c.finnhubKey)}" placeholder="Pega aquí tu API key" autocomplete="off" spellcheck="false">
       <div class="hint">Regístrate gratis en <a href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a> y copia tu “API key”. Se guarda solo en este dispositivo.</div>
-      <label for="ajProxy"><b>Futuros, BMV (.MX) y todo lo demás</b> — URL de tu proxy de Yahoo Finance (opcional)</label>
+      <label for="ajProxy"><b>Bolsa Mexicana (.MX) y otras bolsas</b> — URL de tu proxy de Yahoo Finance (opcional)</label>
       <input id="ajProxy" value="${esc(c.proxyUrl)}" placeholder="https://TU-PROYECTO.supabase.co/functions/v1/cotizaciones" autocomplete="off" spellcheck="false">
       <div class="hint">Yahoo no deja que una página web pida sus precios directamente, así que hace falta un pequeño intermediario. Ver <code>inversiones/proxy/LEEME.md</code>. Si lo configuras, también sirve para acciones y ETFs sin llave de Finnhub.</div>
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="ajAuto" style="width:auto" ${c.auto ? 'checked' : ''}> Actualizar precios cada minuto mientras la app está abierta</label>
@@ -415,10 +411,10 @@ function abrirActivo(k) {
     <h3><span>${esc(P.simbolo)} <span class="badge">${CLASES[P.clase]}</span></span><button class="x" data-cerrar aria-label="Cerrar">✕</button></h3>
     ${P.nombre ? `<div class="muted small" style="margin-top:-8px">${esc(P.nombre)}</div>` : ''}
     <div class="det-grid">
-      <div class="kpi"><span>Posición</span><b>${cant(P.q)}${P.fut ? ' contratos' : ''}</b></div>
+      <div class="kpi"><span>Posición</span><b>${cant(P.q)}</b></div>
       <div class="kpi"><span>Costo promedio</span><b>${money(P.avg, P.moneda)}</b></div>
       <div class="kpi"><span>Precio actual</span><b>${P.pr ? money(P.pr.p, P.moneda) : '—'}</b><span>${P.pr ? (P.pr.fuente === 'manual' ? 'manual' : P.pr.fuente + ' · ' + haceCuanto(P.pr.ts)) : 'sin dato'}</span></div>
-      <div class="kpi"><span>${P.fut ? 'Valor nocional' : 'Valor'}</span><b>${money(P.fut ? P.nocional : P.valor)}</b></div>
+      <div class="kpi"><span>Valor</span><b>${money(P.valor)}</b></div>
       <div class="kpi"><span>No realizado</span><b class="${cls(P.pnl)}">${signo(P.pnl)}</b><span class="${cls(P.pnl)}">${pct(P.pnlPct)}</span></div>
       <div class="kpi"><span>Realizado</span><b class="${cls(P.realizadoB)}">${signo(P.realizadoB)}</b><span>comisiones ${money(conv(P.comisiones, P.moneda, D.cfg.base))}</span></div>
     </div>
@@ -438,7 +434,6 @@ function abrirActivo(k) {
 const HINTS = {
   accion: 'EE. UU.: AAPL, MSFT. Bolsa Mexicana (requiere proxy): AMXL.MX, WALMEX.MX.',
   etf: 'Ej. VOO, QQQ, SPY. En BMV (requiere proxy): NAFTRAC.MX.',
-  futuro: 'Raíz del contrato: ES, NQ, CL, GC… (se busca como ES=F en Yahoo; requiere proxy).',
   cripto: 'Ej. BTC, ETH, SOL. Precio automático desde CoinGecko.',
   otro: 'Cualquier símbolo de Yahoo Finance (requiere proxy) o usa precio manual.',
 };
@@ -451,7 +446,7 @@ function abrirOp(op, pre) {
   $('#opTitulo').textContent = op ? 'Editar operación' : 'Nueva operación';
   $('#opClase').value = o.clase; $('#opFecha').value = o.fecha; $('#opSimbolo').value = o.simbolo || '';
   $('#opNombre').value = o.nombre || ''; $('#opCantidad').value = o.cantidad ?? ''; $('#opPrecio').value = o.precio ?? '';
-  $('#opMoneda').value = o.moneda; $('#opComision').value = o.comision || ''; $('#opMult').value = o.mult && o.mult !== 1 ? o.mult : '';
+  $('#opMoneda').value = o.moneda; $('#opComision').value = o.comision || '';
   $('#opNota').value = o.nota || '';
   $('#opBorrar').hidden = !op;
   sincForm();
@@ -464,15 +459,14 @@ function sincForm() {
   const clase = $('#opClase').value, sim = $('#opSimbolo').value.trim().toUpperCase();
   document.querySelectorAll('.tipo-op button').forEach(b => b.classList.toggle('on', b.dataset.tipo === UI.tipo));
   $('#opSimHint').textContent = HINTS[clase];
-  $('#opMultBox').hidden = !(clase === 'futuro' || clase === 'otro');
   $('#listaSimbolos').innerHTML = [...new Set(D.ops.filter(o => o.clase === clase).map(o => o.simbolo))].map(s => `<option value="${esc(s)}">`).join('');
   // Un mismo activo conserva su moneda y multiplicador en todas sus operaciones.
   const ex = sim && existente(clase, sim);
-  $('#opMoneda').disabled = !!ex; $('#opMult').disabled = !!ex;
-  if (ex) { $('#opMoneda').value = ex.moneda; $('#opMult').value = ex.mult !== 1 ? ex.mult : ''; if (!$('#opNombre').value && ex.nombre) $('#opNombre').placeholder = ex.nombre; }
+  $('#opMoneda').disabled = !!ex;
+  if (ex) { $('#opMoneda').value = ex.moneda; if (!$('#opNombre').value && ex.nombre) $('#opNombre').placeholder = ex.nombre; }
   if (clase === 'cripto' && !ex && !UI.editando) $('#opMoneda').value = $('#opMoneda').value || 'USD';
   const q = num($('#opCantidad').value), p = num($('#opPrecio').value), c = num($('#opComision').value) || 0;
-  const m = clase === 'futuro' || clase === 'otro' ? (num($('#opMult').value) || 1) : 1, mon = $('#opMoneda').value;
+  const m = 1, mon = $('#opMoneda').value;
   if (q > 0 && p >= 0) {
     const bruto = q * p * m, tot = UI.tipo === 'compra' ? bruto + c : bruto - c;
     let extra = '';
@@ -480,9 +474,7 @@ function sincForm() {
       const P = posiciones().find(x => x.k === clave(clase, sim));
       if (P && P.q > 0) extra = `<div class="tiny muted">Tienes ${cant(P.q)} · ganancia estimada <b class="${cls((p - P.avg) * Math.min(q, P.q) * m - c)}">${signo((p - P.avg) * Math.min(q, P.q) * m - c, mon)}</b></div>`;
     }
-    $('#opResumen').innerHTML = clase === 'futuro'
-      ? `Nocional: <b>${money(bruto, mon)}</b>${c ? ` · comisión ${money(c, mon)}` : ''}${extra}`
-      : `${UI.tipo === 'compra' ? 'Total pagado' : 'Total recibido'}: <b>${money(tot, mon)}</b>${extra}`;
+    $('#opResumen').innerHTML = `${UI.tipo === 'compra' ? 'Total pagado' : 'Total recibido'}: <b>${money(tot, mon)}</b>${extra}`;
     $('#opResumen').hidden = false;
   } else $('#opResumen').hidden = true;
 }
@@ -492,8 +484,7 @@ function guardarOp(e) {
   const clase = $('#opClase').value, simbolo = $('#opSimbolo').value.trim().toUpperCase().replace(/\s+/g, '');
   const cantidad = num($('#opCantidad').value), precio = num($('#opPrecio').value);
   const comision = num($('#opComision').value) || 0;
-  const usaMult = clase === 'futuro' || clase === 'otro';
-  const mult = usaMult ? (num($('#opMult').value) || 1) : 1;
+  const mult = 1;
   if (!simbolo) return toast('Escribe el símbolo');
   if (!(cantidad > 0)) return toast('La cantidad debe ser mayor a 0');
   if (!(precio >= 0)) return toast('Escribe el precio por unidad');
