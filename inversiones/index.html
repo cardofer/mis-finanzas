@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mis Inversiones</title>
+<meta name="description" content="Da seguimiento a tus acciones, ETFs, futuros y criptomonedas con precios reales.">
+<meta name="theme-color" content="#4338ca">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Inversiones">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{
+  --bg:#f3f4f8;--card:#fff;--ink:#1a1c24;--muted:#666b7a;--line:#e3e5ec;
+  --pri:#4338ca;--pri-ink:#fff;--soft:#eceafd;
+  --up:#15803d;--up-soft:#e3f3e8;--down:#b91c1c;--down-soft:#fde8e8;--warn:#a16207;--warn-soft:#fdf3d7;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 6px 20px rgba(0,0,0,.06);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1016;--card:#191b24;--ink:#eceef4;--muted:#9a9fb0;--line:#2a2d3a;
+  --pri:#a5b4fc;--pri-ink:#16173a;--soft:#25264a;
+  --up:#4ade80;--up-soft:#163222;--down:#f87171;--down-soft:#3b1a1a;--warn:#fbbf24;--warn-soft:#3a2e12;
+  --shadow:0 1px 2px rgba(0,0,0,.3);color-scheme:dark;
+}}
+[hidden]{display:none!important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 var(--font);padding-bottom:calc(86px + env(safe-area-inset-bottom,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 10px;background:var(--bg)}
+header h1{margin:0;font-size:21px;flex:1}
+.ibtn{border:0;background:var(--card);box-shadow:var(--shadow);border-radius:12px;min-width:40px;height:40px;padding:0 10px;cursor:pointer;font-size:15px}
+.ibtn.gira{animation:gira 1s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+main{max-width:720px;margin:0 auto;padding:0 16px}
+.card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:16px;margin-bottom:12px}
+.card h2{font-size:15px;margin:0 0 10px}
+.muted{color:var(--muted)}.small{font-size:13px}.tiny{font-size:12px}
+.up{color:var(--up)}.down{color:var(--down)}
+.total{font-size:32px;font-weight:700;letter-spacing:-.5px;margin:2px 0 4px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.kpi{background:var(--bg);border-radius:12px;padding:8px 10px;min-width:0}
+.kpi b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi span{font-size:12px;color:var(--muted)}
+@media (max-width:420px){.kpis{grid-template-columns:1fr 1fr}.kpis .kpi:last-child{grid-column:span 2}}
+.seg{display:inline-flex;background:var(--bg);border-radius:10px;padding:3px;gap:2px}
+.seg button{border:0;background:none;padding:5px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--muted)}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow);font-weight:600}
+.fila-tit{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.fila-tit h2{margin:0}
+.chart-box{position:relative;height:220px}
+.pos{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line);cursor:pointer}
+.pos:first-of-type{border-top:0}
+.pos .ico{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:11px;background:var(--soft);color:var(--pri);overflow:hidden}
+.pos .mid{flex:1;min-width:0}
+.pos .mid b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pos .der{text-align:right;flex:none}
+.pos .der b{display:block}
+.badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--bg);color:var(--muted);margin-left:4px;font-weight:500;vertical-align:1px}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.vacio{text-align:center;padding:28px 10px}
+.vacio .big{font-size:40px}
+details summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
+.fecha-g{font-size:12px;color:var(--muted);font-weight:600;margin:14px 0 2px}
+.fecha-g::first-letter{text-transform:uppercase}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{flex:1;border:0;background:none;padding:9px 0 10px;cursor:pointer;color:var(--muted);font-size:11px}
+.tabs button span{display:block;font-size:20px;line-height:1.2}
+.tabs button.on{color:var(--pri);font-weight:600}
+.fab{position:fixed;z-index:7;right:18px;bottom:calc(72px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;border:0;background:var(--pri);color:var(--pri-ink);font-size:28px;box-shadow:0 6px 20px rgba(67,56,202,.35);cursor:pointer}
+dialog{border:0;border-radius:18px;padding:0;width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 24px);background:var(--card);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(10,12,20,.45)}
+.dlg{padding:18px}
+.dlg h3{margin:0 0 12px;font-size:18px;display:flex;justify-content:space-between;align-items:center}
+.x{border:0;background:var(--bg);border-radius:10px;width:34px;height:34px;cursor:pointer}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:11px;padding:10px 12px;font-size:16px}
+textarea{min-height:60px;resize:vertical}
+input:disabled,select:disabled{opacity:.65}
+.dos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dos>div{min-width:0}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:12px;padding:11px 16px;cursor:pointer;background:var(--pri);color:var(--pri-ink);font-weight:600}
+.btn.sec{background:var(--soft);color:var(--pri)}
+.btn.peligro{background:var(--down-soft);color:var(--down)}
+.btn.full{width:100%}
+.acciones{display:flex;gap:8px;margin-top:16px}
+.acciones .btn{flex:1}
+.tipo-op{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tipo-op button{border:1px solid var(--line);background:var(--bg);border-radius:11px;padding:10px;cursor:pointer;font-weight:600}
+.tipo-op button.on.compra{background:var(--up-soft);color:var(--up);border-color:var(--up)}
+.tipo-op button.on.venta{background:var(--down-soft);color:var(--down);border-color:var(--down)}
+.resumen-op{background:var(--bg);border-radius:11px;padding:10px 12px;margin-top:12px;font-size:14px}
+.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.op-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line);cursor:pointer}
+.op-row:first-child{border-top:0}
+.op-row .l{min-width:0}
+#toast{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:#1f2130;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:20;max-width:calc(100vw - 32px)}
+#toast.ver{opacity:1;transform:translateX(-50%)}
+.aviso{background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.aviso button{border:0;background:none;color:inherit;text-decoration:underline;cursor:pointer;padding:0;font-weight:600}
+code{background:var(--bg);padding:1px 5px;border-radius:6px;font-size:13px}
+a{color:var(--pri)}
+.lista-aj .btn{margin:4px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titulo">Portafolio</h1>
+  <button class="ibtn" id="btnRefrescar" title="Actualizar precios" aria-label="Actualizar precios">↻</button>
+</header>
+
+<main>
+  <section id="v-portafolio" class="vista"></section>
+  <section id="v-operaciones" class="vista" hidden></section>
+  <section id="v-ajustes" class="vista" hidden></section>
+</main>
+
+<button class="fab" id="fab" aria-label="Registrar operación">+</button>
+
+<nav class="tabs">
+  <button data-v="portafolio" class="on"><span>📈</span>Portafolio</button>
+  <button data-v="operaciones"><span>🧾</span>Operaciones</button>
+  <button data-v="ajustes"><span>⚙️</span>Ajustes</button>
+</nav>
+
+<dialog id="dlgOp"><form class="dlg" id="formOp" method="dialog" novalidate>
+  <h3><span id="opTitulo">Nueva operación</span><button type="button" class="x" data-cerrar aria-label="Cerrar">✕</button></h3>
+  <div class="tipo-op" role="radiogroup">
+    <button type="button" class="compra on" data-tipo="compra">Compra</button>
+    <button type="button" class="venta" data-tipo="venta">Venta</button>
+  </div>
+  <div class="dos">
+    <div><label for="opClase">Tipo de activo</label>
+      <select id="opClase">
+        <option value="accion">Acción</option><option value="etf">ETF</option>
+        <option value="futuro">Futuro</option><option value="cripto">Cripto</option>
+        <option value="otro">Otro</option>
+      </select></div>
+    <div><label for="opFecha">Fecha</label><input id="opFecha" type="date" required></div>
+  </div>
+  <label for="opSimbolo">Símbolo</label>
+  <input id="opSimbolo" list="listaSimbolos" autocomplete="off" autocapitalize="characters" spellcheck="false" required placeholder="Ej. AAPL">
+  <datalist id="listaSimbolos"></datalist>
+  <div class="hint" id="opSimHint"></div>
+  <label for="opNombre">Nombre (opcional)</label>
+  <input id="opNombre" placeholder="Ej. Apple Inc.">
+  <div class="dos">
+    <div><label for="opCantidad">Cantidad</label><input id="opCantidad" inputmode="decimal" required placeholder="0"></div>
+    <div><label for="opPrecio">Precio por unidad</label><input id="opPrecio" inputmode="decimal" required placeholder="0.00"></div>
+  </div>
+  <div class="dos">
+    <div><label for="opMoneda">Moneda</label><select id="opMoneda"><option>USD</option><option>MXN</option></select></div>
+    <div><label for="opComision">Comisión</label><input id="opComision" inputmode="decimal" placeholder="0.00"></div>
+  </div>
+  <div id="opMultBox">
+    <label for="opMult">Multiplicador del contrato</label>
+    <input id="opMult" inputmode="decimal" placeholder="1">
+    <div class="hint">Cuánto vale 1 punto por contrato. ES = 50, MES = 5, NQ = 20, MNQ = 2, CL = 1000, GC = 100. Opciones = 100.</div>
+  </div>
+  <label for="opNota">Nota (opcional)</label>
+  <textarea id="opNota" placeholder="Broker, estrategia…"></textarea>
+  <div class="resumen-op" id="opResumen"></div>
+  <div class="acciones">
+    <button type="button" class="btn peligro" id="opBorrar" hidden>Borrar</button>
+    <button type="submit" class="btn">Guardar</button>
+  </div>
+</form></dialog>
+
+<dialog id="dlgActivo"><div class="dlg" id="activoCont"></div></dialog>
+
+<div id="toast" role="status"></div>
+
+<script src="chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
