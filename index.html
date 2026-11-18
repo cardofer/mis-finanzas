@@ -96,6 +96,10 @@ main{max-width:720px;margin:0 auto;padding-block:0;padding-left:max(16px,env(saf
 .sub{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
 .tap{cursor:pointer}
 .pos{color:var(--inc)}.neg-c{color:var(--debt)}
+.racha{background:var(--card);border-radius:14px;padding:10px 14px;margin:0 0 12px;box-shadow:var(--shadow);font-size:14px;min-width:0}
+.racha .tiny{margin-top:2px}
+.dinero{border-left:4px solid var(--debt)}
+.regreso{border-left:4px solid var(--pri)}
 .btn{border:0;border-radius:12px;padding:10px 14px;font-weight:600;background:var(--soft);color:var(--pri)}
 .btn.pri{background:var(--pri);color:var(--pri-ink)}
 .btn.danger{background:var(--debt-soft);color:var(--debt)}
@@ -902,6 +906,61 @@ function favoritos() {
 }
 
 /* ---------- Inicio ---------- */
+/* ---------- Motivación: dinero real del día 1 y racha con comodines ---------- */
+/* Días en que registraste algo (por fecha de captura; datos viejos sin hora usan la fecha del movimiento) */
+function diasActivos() {
+  const s = new Set();
+  [D.movs, D.pas, D.act, D.msi].forEach(l => l.forEach(r => { const c = +r.creado || 0; const d = c > 1e12 ? ymd(new Date(c)) : r.fecha; if (d) s.add(d); }));
+  return s;
+}
+/* Racha que perdona: empiezas con 1 comodín, ganas 1 cada 7 días seguidos (máx. 2).
+   Un día sin registrar gasta un comodín en lugar de romper la racha. Hoy no cuenta como falta. */
+function racha() {
+  const act = diasActivos(), h = hoy(), dias = [...act].filter(d => d <= h).sort();
+  if (!dias.length) return { n: 0, comodines: 1, hoy: false, ultimo: null, usado: false };
+  let n = 0, com = 1, usado = false;
+  const d = parseD(dias[0]), fin = parseD(h), tope = new Date(fin); tope.setDate(tope.getDate() - 400); if (d < tope) d.setTime(tope.getTime());
+  for (; d <= fin; d.setDate(d.getDate() + 1)) {
+    const k = ymd(d);
+    if (act.has(k)) { n++; usado = false; if (n % 7 === 0 && com < 2) com++; }
+    else if (k === h) { /* el día de hoy todavía no termina */ }
+    else if (n > 0 && com > 0) { com--; usado = true; }
+    else { n = 0; com = 1; usado = false; }
+  }
+  return { n, comodines: com, hoy: act.has(h), ultimo: dias[dias.length - 1], usado };
+}
+const HITOS = [3, 7, 14, 21, 30, 50, 75, 100, 150, 200, 365];
+function rachaHtml() {
+  const r = racha();
+  despues.push(() => {
+    $$('[data-racha]').forEach(b => b.onclick = () => toast('Cada 7 días seguidos ganas un comodín 🛡️ (máx. 2). Si un día no registras, se usa uno y tu racha sigue.'));
+    $$('[data-registrar]').forEach(b => b.onclick = abrirRegistro);
+  });
+  if (!r.ultimo) return `<div class="racha tap" data-racha>🔥 <b>Empieza tu racha:</b> registra tu primer gasto hoy con <b>+</b></div>`;
+  if (!r.n && !r.hoy) return `<section class="card regreso"><h2>👋 ¡Qué bueno verte de nuevo!</h2>
+    <div class="small">No hace falta ponerte al día con todo. Registra solo <b>tu gasto más grande de ayer</b> y empezamos una racha nueva.</div>
+    <div class="btns"><button class="btn pri" data-registrar>Registrar ahora</button></div></section>`;
+  const dias = n => `${n} ${n === 1 ? 'día' : 'días'}`, falta = 7 - r.n % 7;
+  const sub = r.hoy
+    ? (HITOS.includes(r.n) ? `🎉 ¡Llegaste a ${dias(r.n)} seguidos!` : r.comodines < 2 ? `✅ Hoy ya cuenta. ${falta === 7 ? 'Sigue así' : `En ${dias(falta)} ganas otro comodín`}.` : '✅ Hoy ya cuenta. ¡Vas muy bien!')
+    : r.usado ? `🛡️ Usamos un comodín por ayer: tu racha sigue. Registra hoy para llegar a ${dias(r.n + 1)}.`
+    : `Registra algo hoy para llegar a ${dias(r.n + 1)}.`;
+  return `<div class="racha tap" data-racha><div>🔥 <b>${dias(r.n)}</b> registrando · 🛡️ ${r.comodines} ${r.comodines === 1 ? 'comodín' : 'comodines'}</div><div class="tiny muted">${sub}</div></div>`;
+}
+/* Lo que te cuestan tus tarjetas, en pesos, y la acción que más dinero te ahorra */
+function dineroReal(R) {
+  if (!(R.interes > 0.5)) return '';
+  const iva = +C().params.iva || 0, anual = R.interes * 12, tacos = Math.round(anual / 20);
+  const prox = R.cards.filter(x => x.pagar > 0 && x.due && diasA(x.due) >= 0).sort((a, b) => diasA(a.due) - diasA(b.due))[0];
+  const cara = R.cards.filter(x => x.interes > 0).sort((a, b) => (+b.tasa || 0) - (+a.tasa || 0))[0];
+  const accion = prox
+    ? `👉 Lo que más te conviene ahora: paga <b>${fmt(prox.pagar)}</b> a <b>${esc(prox.nombre)}</b> antes del <b>${fDate(prox.due)}</b> y esa tarjeta no te cobra intereses${prox.interes > 0.5 ? ` (te ahorras ~${fmt(prox.interes)})` : ''}.`
+    : cara ? `👉 Empieza por <b>${esc(cara.nombre)}</b> (tasa ${pct(+cara.tasa || 0, 0)}): cada <b>${fmt(1000)}</b> que le abones te ahorra ~<b>${fmt(1000 * (+cara.tasa || 0) / 12 * (1 + iva))}</b> al mes.` : '';
+  return `<section class="card dinero"><h2>💡 Tu dinero real</h2>
+    <div class="small">Si solo pagas el mínimo, tus tarjetas te cuestan <b class="num" style="color:var(--debt)">${fmt(R.interes)} al mes</b> en intereses: <b class="num" style="color:var(--debt)">${fmt(anual)} al año</b>${tacos >= 10 ? ` (como ${tacos.toLocaleString('es-MX')} tacos 🌮)` : ''}.</div>
+    ${accion ? `<div class="small" style="margin-top:8px">${accion}</div>` : ''}
+    <div class="btns"><button class="btn sm" data-go="tarjetas">Ver mis tarjetas</button></div></section>`;
+}
 function vInicio() {
   const ym = hoy().slice(0, 7), R = calc(ym), dia = new Date().getDate();
   const base = Math.max(R.ing, R.gas + Math.max(0, R.aho), 1), w = v => (Math.max(0, v) / base * 100).toFixed(1) + '%';
@@ -918,8 +977,11 @@ function vInicio() {
   const ritmo = !R.ing ? '<span class="muted">Registra tus ingresos del mes para saber cuánto puedes gastar al día.</span>'
     : porDia > 0 ? `Puedes gastar <b class="num" style="color:var(--inc)">${fmt(porDia)} al día</b> los próximos ${diasRest} ${diasRest === 1 ? 'día' : 'días'}${pendRec ? `, ya apartando ${fmt(pendRec)} de recurrentes pendientes` : ''}.`
     : `<span style="color:var(--debt)">Con lo que has recibido, este mes te faltan <b class="num">${fmt(-(R.libre - pendRec))}</b>${pendRec ? ` (contando ${fmt(pendRec)} de recurrentes pendientes)` : ''}.</span> <span class="muted">Evita gastos no esenciales hasta tu próximo ingreso.</span>`;
+  const nuevo = D.movs.length < 10;
   return `
+  ${rachaHtml()}
   ${alertas(R)}
+  ${nuevo ? dineroReal(R) : ''}
   <section class="card hero">
     <div class="label">${mesNombre(ym)} · Gastado en el mes</div>
     <div class="big">${fmt(R.gas)}</div>
@@ -932,6 +994,7 @@ function vInicio() {
     <div class="bar"><i style="width:${w(R.g.fijo)};background:var(--fix)"></i><i style="width:${w(R.g.variable)};background:var(--var)"></i><i style="width:${w(R.g.hormiga)};background:var(--ant)"></i><i style="width:${w(R.aho)};background:var(--sav)"></i></div>
     <div class="legend"><span><b style="background:var(--fix)"></b>Fijos</span><span><b style="background:var(--var)"></b>Variables</span><span><b style="background:var(--ant)"></b>Hormiga</span><span><b style="background:var(--sav)"></b>Ahorrado ${fmt(R.aho)}</span></div>
   </section>
+  ${nuevo ? '' : dineroReal(R)}
 
   <section class="card">
     <h2>📅 Gastos recurrentes del mes</h2>
