@@ -96,7 +96,31 @@ main{max-width:720px;margin:0 auto;padding-block:0;padding-left:max(16px,env(saf
 .sub{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
 .tap{cursor:pointer}
 .pos{color:var(--inc)}.neg-c{color:var(--debt)}
-.racha{background:var(--card);border-radius:14px;padding:10px 14px;margin:0 0 12px;box-shadow:var(--shadow);font-size:14px;min-width:0}
+.racha{background:var(--card);border-radius:14px;padding:10px 14px;margin:0 0 12px;box-shadow:var(--shadow);font-size:14px;min-width:0;display:flex;align-items:center;gap:10px}
+.racha .llama{font-size:26px;line-height:1;flex:none}
+.racha .rTxt{flex:1;min-width:0}
+.racha.viva .llama{animation:flama 1.8s ease-in-out infinite;transform-origin:50% 90%}
+.racha:not(.viva) .llama{filter:grayscale(1);opacity:.5}
+.racha .sinG{flex:none;white-space:nowrap}
+@keyframes flama{0%,100%{transform:scale(1) rotate(-4deg)}50%{transform:scale(1.12) rotate(4deg)}}
+.festejo{position:fixed;inset:0;z-index:25;display:grid;place-items:center;background:rgba(0,0,0,.38);animation:fIn .25s ease-out;overflow:hidden;cursor:pointer}
+.festejo.fuera{opacity:0;transition:opacity .3s}
+.fCard{background:var(--card);color:var(--ink);border-radius:24px;padding:22px 26px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:pop .55s cubic-bezier(.2,1.6,.4,1);width:min(300px,calc(100vw - 64px))}
+.fCard h3{margin:10px 0 4px;font-size:20px}
+.hito .fCard{border:3px solid var(--pri)}
+.fLlama{font-size:72px;line-height:1;animation:llamarada 1s ease-out .1s both}
+.fNum{position:relative;height:56px;line-height:56px;overflow:hidden;font-size:48px;font-weight:800;color:var(--pri);font-variant-numeric:tabular-nums}
+.fNum span{position:absolute;left:0;right:0}
+.fViejo{animation:sale .45s ease-in .7s both}
+.fNuevo{animation:entra .55s cubic-bezier(.2,1.5,.4,1) .7s both}
+.chispa{position:fixed;left:50%;top:42%;font-size:26px;pointer-events:none;animation:chispa 1.4s cubic-bezier(.15,.7,.3,1) var(--d) both}
+@keyframes fIn{from{opacity:0}}
+@keyframes pop{from{transform:scale(.6);opacity:0}}
+@keyframes llamarada{0%{transform:scale(.3);filter:grayscale(1)}60%{transform:scale(1.35);filter:none}100%{transform:scale(1)}}
+@keyframes sale{to{transform:translateY(-100%);opacity:0}}
+@keyframes entra{from{transform:translateY(100%);opacity:0}}
+@keyframes chispa{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}80%{opacity:1}100%{transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(var(--r)) scale(1.1);opacity:0}}
+@media (prefers-reduced-motion:reduce){.chispa{display:none}.racha .llama,.fCard,.fCard *{animation:none!important}.fViejo{display:none}}
 .racha .tiny{margin-top:2px}
 .dinero{border-left:4px solid var(--debt)}
 .regreso{border-left:4px solid var(--pri)}
@@ -675,6 +699,7 @@ function render() {
   abiertos.forEach(id => { const d = document.getElementById(id); if (d) d.open = true; });
   if (foco) { const el = document.getElementById(foco); if (el) el.focus(); }
   despues.forEach(f => f()); despues = [];
+  festejo();
 }
 /* =================== Cuenta y nube (Supabase) =================== */
 const AUTH = { sb: null, user: null, necesita: false, modo: 'entrar', msg: '', ocupado: false };
@@ -911,6 +936,7 @@ function favoritos() {
 function diasActivos() {
   const s = new Set();
   [D.movs, D.pas, D.act, D.msi].forEach(l => l.forEach(r => { const c = +r.creado || 0; const d = c > 1e12 ? ymd(new Date(c)) : r.fecha; if (d) s.add(d); }));
+  (C().sinGasto || []).forEach(d => s.add(d));
   return s;
 }
 /* Racha que perdona: empiezas con 1 comodín, ganas 1 cada 7 días seguidos (máx. 2).
@@ -918,16 +944,16 @@ function diasActivos() {
 function racha() {
   const act = diasActivos(), h = hoy(), dias = [...act].filter(d => d <= h).sort();
   if (!dias.length) return { n: 0, comodines: 1, hoy: false, ultimo: null, usado: false };
-  let n = 0, com = 1, usado = false;
+  let n = 0, com = 1, usado = false, ganado = false;
   const d = parseD(dias[0]), fin = parseD(h), tope = new Date(fin); tope.setDate(tope.getDate() - 400); if (d < tope) d.setTime(tope.getTime());
   for (; d <= fin; d.setDate(d.getDate() + 1)) {
     const k = ymd(d);
-    if (act.has(k)) { n++; usado = false; if (n % 7 === 0 && com < 2) com++; }
+    if (act.has(k)) { n++; usado = false; if (n % 7 === 0 && com < 2) { com++; ganado = k === h; } }
     else if (k === h) { /* el día de hoy todavía no termina */ }
     else if (n > 0 && com > 0) { com--; usado = true; }
     else { n = 0; com = 1; usado = false; }
   }
-  return { n, comodines: com, hoy: act.has(h), ultimo: dias[dias.length - 1], usado };
+  return { n, comodines: com, hoy: act.has(h), ultimo: dias[dias.length - 1], usado, ganado };
 }
 const HITOS = [3, 7, 14, 21, 30, 50, 75, 100, 150, 200, 365];
 function rachaHtml() {
@@ -935,17 +961,65 @@ function rachaHtml() {
   despues.push(() => {
     $$('[data-racha]').forEach(b => b.onclick = () => toast('Cada 7 días seguidos ganas un comodín 🛡️ (máx. 2). Si un día no registras, se usa uno y tu racha sigue.'));
     $$('[data-registrar]').forEach(b => b.onclick = abrirRegistro);
+    $$('[data-singasto]').forEach(b => b.onclick = marcarSinGasto);
   });
-  if (!r.ultimo) return `<div class="racha tap" data-racha>🔥 <b>Empieza tu racha:</b> registra tu primer gasto hoy con <b>+</b></div>`;
+  const btnSG = '<button class="btn sm sinG" data-singasto>🙌 Hoy no gasté</button>';
+  if (!r.ultimo) return `<div class="racha tap" data-racha><span class="llama">🔥</span><div class="rTxt"><b>Empieza tu racha:</b> registra tu primer gasto con <b>+</b></div>${btnSG}</div>`;
   if (!r.n && !r.hoy) return `<section class="card regreso"><h2>👋 ¡Qué bueno verte de nuevo!</h2>
     <div class="small">No hace falta ponerte al día con todo. Registra solo <b>tu gasto más grande de ayer</b> y empezamos una racha nueva.</div>
-    <div class="btns"><button class="btn pri" data-registrar>Registrar ahora</button></div></section>`;
+    <div class="btns"><button class="btn pri" data-registrar>Registrar ahora</button><button class="btn" data-singasto>🙌 Hoy no gasté</button></div></section>`;
   const dias = n => `${n} ${n === 1 ? 'día' : 'días'}`, falta = 7 - r.n % 7;
+  const sg = (C().sinGasto || []).includes(hoy()) && !D.movs.some(m => m.fecha === hoy() && m.tipo === 'Gasto');
   const sub = r.hoy
-    ? (HITOS.includes(r.n) ? `🎉 ¡Llegaste a ${dias(r.n)} seguidos!` : r.comodines < 2 ? `✅ Hoy ya cuenta. ${falta === 7 ? 'Sigue así' : `En ${dias(falta)} ganas otro comodín`}.` : '✅ Hoy ya cuenta. ¡Vas muy bien!')
+    ? sg ? '🙌 Hoy: día sin gastos. ¡Tu bolsillo te lo agradece!'
+    : (HITOS.includes(r.n) ? `🎉 ¡Llegaste a ${dias(r.n)} seguidos!` : r.comodines < 2 ? `✅ Hoy ya cuenta. ${falta === 7 ? 'Sigue así' : `En ${dias(falta)} ganas otro comodín`}.` : '✅ Hoy ya cuenta. ¡Vas muy bien!')
     : r.usado ? `🛡️ Usamos un comodín por ayer: tu racha sigue. Registra hoy para llegar a ${dias(r.n + 1)}.`
     : `Registra algo hoy para llegar a ${dias(r.n + 1)}.`;
-  return `<div class="racha tap" data-racha><div>🔥 <b>${dias(r.n)}</b> registrando · 🛡️ ${r.comodines} ${r.comodines === 1 ? 'comodín' : 'comodines'}</div><div class="tiny muted">${sub}</div></div>`;
+  return `<div class="racha tap${r.hoy ? ' viva' : ''}" data-racha><span class="llama">🔥</span><div class="rTxt"><div><b>${dias(r.n)}</b> seguidos · 🛡️ ${r.comodines} ${r.comodines === 1 ? 'comodín' : 'comodines'}</div><div class="tiny muted">${sub}</div></div>${r.hoy ? '' : btnSG}</div>`;
+}
+/* "Hoy no gasté": el día cuenta para la racha aunque no haya gastos (se guarda en tu configuración, en la nube) */
+function marcarSinGasto(e) {
+  if (e) e.stopPropagation();
+  const h = hoy(), cfg = JSON.parse(JSON.stringify(C()));
+  cfg.sinGasto = [...new Set([...(cfg.sinGasto || []), h])].sort().slice(-400);
+  festejo.motivo = 'sinGasto';
+  guardarCfg(cfg);
+  toast('🙌 Marcado: hoy no gastaste', () => {
+    const c = JSON.parse(JSON.stringify(C())); c.sinGasto = (c.sinGasto || []).filter(d => d !== h);
+    try { localStorage.removeItem('mf.festejo'); } catch (err) {}
+    guardarCfg(c);
+  });
+}
+/* Animación: se muestra una vez al día, la primera vez que tu día cuenta para la racha */
+function festejo() {
+  if (!ST.cargado || document.body.classList.contains('sinSesion') || $('.festejo')) return;
+  const r = racha(), h = hoy();
+  if (!r.hoy) return;
+  try { if (localStorage.getItem('mf.festejo') === h) return; localStorage.setItem('mf.festejo', h); } catch (e) { return; }
+  const motivo = festejo.motivo; festejo.motivo = null;
+  const hito = HITOS.includes(r.n);
+  const titulo = hito ? `¡${r.n} días seguidos!` : motivo === 'sinGasto' ? '¡Día sin gastos!' : r.n === 1 ? '¡Empezó tu racha!' : '¡Tu racha sigue viva!';
+  const sub = r.ganado ? 'Ganaste un comodín 🛡️ para un día que se te olvide'
+    : motivo === 'sinGasto' ? 'Tu bolsillo te lo agradece 🙌'
+    : hito ? 'Estás creando un gran hábito 💪' : 'Hoy ya cuenta. Nos vemos mañana 👋';
+  const emojis = motivo === 'sinGasto' ? ['🙌', '💚', '✨', '🐷'] : hito ? ['🎉', '🎊', '🔥', '✨', '💰', '🥳'] : ['🔥', '✨', '💰'];
+  const cuantas = hito ? 28 : 16;
+  let chispas = '';
+  for (let i = 0; i < cuantas; i++) {
+    const ang = (i / cuantas) * Math.PI * 2 + Math.random() * .4, dist = 110 + Math.random() * (hito ? 140 : 80);
+    chispas += `<span class="chispa" style="--x:${Math.round(Math.cos(ang) * dist)}px;--y:${Math.round(Math.sin(ang) * dist)}px;--r:${Math.round(Math.random() * 360 - 180)}deg;--d:${(.5 + Math.random() * .3).toFixed(2)}s">${emojis[i % emojis.length]}</span>`;
+  }
+  const el = document.createElement('div');
+  el.className = 'festejo' + (hito ? ' hito' : '');
+  el.setAttribute('role', 'status');
+  el.innerHTML = `<div class="fCard"><div class="fLlama">${motivo === 'sinGasto' ? '🙌' : '🔥'}</div>
+    <div class="fNum"><span class="fViejo">${r.n - 1}</span><span class="fNuevo">${r.n}</span></div>
+    <div class="tiny muted">${r.n === 1 ? 'día' : 'días'} seguidos</div>
+    <h3>${titulo}</h3><div class="small muted">${sub}</div></div>${chispas}`;
+  document.body.appendChild(el);
+  try { if (navigator.vibrate) navigator.vibrate(hito ? [30, 60, 30] : 25); } catch (e) {}
+  const cerrar = () => { if (!el.isConnected) return; el.classList.add('fuera'); setTimeout(() => el.remove(), 300); };
+  el.onclick = cerrar; setTimeout(cerrar, hito ? 3600 : 2600);
 }
 /* Lo que te cuestan tus tarjetas, en pesos, y la acción que más dinero te ahorra */
 function dineroReal(R) {
