@@ -53,7 +53,7 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--pri);outline-offset:2px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;align-items:center;justify-content:space-between;gap:8px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--bg)}
-.top h1{font-size:20px;margin:0;text-wrap:balance}
+.top h1{font-size:20px;margin:0;text-wrap:balance;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .icon-btn{border:0;background:var(--card);min-width:38px;height:38px;border-radius:12px;box-shadow:var(--shadow);font-size:17px;padding:0 10px}
 main{max-width:720px;margin:0 auto;padding-block:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .card{background:var(--card);border-radius:18px;padding:16px;margin:0 0 14px;box-shadow:var(--shadow);min-width:0}
@@ -164,6 +164,20 @@ main{max-width:720px;margin:0 auto;padding-block:0;padding-left:max(16px,env(saf
 .rIc{font-size:26px;width:46px;height:46px;border-radius:14px;background:var(--soft);display:grid;place-items:center;flex:none}
 .rCard .main{flex:1;min-width:0}
 .rMeta{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.indRes{background:var(--soft);border-radius:12px;padding:12px 14px;margin:4px 0 6px}
+.indPts{display:flex;gap:5px;margin:8px 0 6px}
+.indPts i{flex:1;height:8px;border-radius:99px}
+.indPts i.s-inc{background:var(--inc)}.indPts i.s-warn{background:var(--warn)}.indPts i.s-debt{background:var(--debt)}
+.indRow{padding:10px 0;border-top:1px solid var(--line)}
+.lbl+.indRow{border-top:0}
+.indTop{display:flex;align-items:center;gap:10px;min-width:0}
+.indTop .main{flex:1;min-width:0}
+.indQ{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--pri);background:none;color:var(--pri);font-weight:800;font-size:13px;line-height:1;padding:0;cursor:pointer;vertical-align:1px;margin-left:2px;font-family:inherit}
+.indQ.on{background:var(--pri);color:var(--pri-ink)}
+.indInfo{margin-top:8px;padding:10px 12px;border-radius:10px;background:var(--soft);font-size:13px;line-height:1.45}
+.gauge{position:relative;display:flex;height:6px;border-radius:99px;overflow:visible;margin-top:8px;opacity:.85}
+.gauge i:first-child{border-radius:99px 0 0 99px}.gauge i:nth-child(3){border-radius:0 99px 99px 0}
+.gauge b{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--card);border:3px solid var(--ink)}
 .btn{border:0;border-radius:12px;padding:10px 14px;font-weight:600;background:var(--soft);color:var(--pri)}
 .btn.pri{background:var(--pri);color:var(--pri-ink)}
 .btn.danger{background:var(--debt-soft);color:var(--debt)}
@@ -706,6 +720,27 @@ const quinDe = f => +f.slice(8, 10) <= 15 ? 1 : 2;
 const rangoQ = (ym, q) => q === 1 ? { desde: ym + '-01', hasta: ym + '-15' } : { desde: ym + '-16', hasta: monthEnd(ym) };
 let quin = quinDe(hoy());
 let tab = 'inicio', mes = hoy().slice(0, 7), filtro = 'todos', borrador = null, charts = {}, dict = null, descargas = null;
+/* "Hola, Ana 👋" (solo el primer nombre); sin nombre, "Hola 👋" */
+const primerNombre = () => String(C().params.nombre || '').trim().split(/\s+/)[0] || '';
+const saludo = () => primerNombre() ? `Hola, ${primerNombre()} 👋` : 'Hola 👋';
+function pedirNombre() {
+  form('¿Cómo te llamas?', [{ k: 'nombre', label: 'Tu nombre', ph: 'Ej. Ana', val: C().params.nombre || '' }], v => {
+    const c = cfgCopia(); c.params.nombre = v.nombre.slice(0, 30); c.nombrePreguntado = true; guardarCfg(c);
+    if (borrador) borrador.params.nombre = c.params.nombre;
+    toast(v.nombre ? `¡Mucho gusto, ${v.nombre.split(/\s+/)[0]}! 👋` : 'Listo');
+  }, { ok: 'Guardar', intro: 'Así te saludamos en Inicio. Lo puedes cambiar cuando quieras tocando el saludo o en ⚙️ Ajustes.' });
+}
+/* Una sola vez: si no sabemos tu nombre, te lo preguntamos con una tarjetita en Inicio */
+function tarjetaNombre() {
+  const c = C(); if (primerNombre() || c.nombrePreguntado) return '';
+  despues.push(() => {
+    const si = $('#nomSi'), no = $('#nomNo');
+    if (si) si.onclick = pedirNombre;
+    if (no) no.onclick = () => { const x = cfgCopia(); x.nombrePreguntado = true; guardarCfg(x); };
+  });
+  return `<section class="card"><div class="small">👋 <b>¿Cómo te llamas?</b> Así te saludamos cada vez que entres.</div>
+    <div class="btns" style="margin-top:8px"><button class="btn sm pri" id="nomSi">Decir mi nombre</button><button class="btn sm" id="nomNo">Ahora no</button></div></section>`;
+}
 const TITULOS = { inicio: 'Mis Finanzas', movs: 'Movimientos', analisis: 'Análisis', presupuestos: 'Presupuestos', ajustes: 'Ajustes' };
 let subA = 'resumen';
 
@@ -728,7 +763,8 @@ function dobleToque(btn, fn, texto = '¿Seguro? Toca otra vez') {
 let despues = [];
 function render() {
   $$('.tabs [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  $('#title').textContent = TITULOS[tab];
+  $('#title').textContent = tab === 'inicio' ? saludo() : TITULOS[tab];
+  $('#title').classList.toggle('tap', tab === 'inicio');
   $('#btnCfg').textContent = tab === 'ajustes' ? '✕' : '⚙️';
   if (tab === 'ajustes' && borrador && $('#cfgView') && !render.forzar) return; // no borrar lo que estás editando
   render.forzar = false;
@@ -890,6 +926,9 @@ function vBienvenida() {
   return `<section class="card hero"><div class="label">Bienvenido 👋</div>
     <div class="big" style="font-size:24px">Configura tu app en 1 minuto</div>
     <div class="small" style="opacity:.85;margin-top:6px">Todo es opcional y lo puedes cambiar después en ⚙️ Ajustes.</div></section>
+  <section class="card"><h2>👋 ¿Cómo te llamas?</h2>
+    <label class="field"><span>Tu nombre</span><input class="inp" id="bNombre" autocomplete="given-name" placeholder="Ej. Ana"></label>
+    <div class="tiny muted" style="margin-top:6px">Para saludarte cada vez que entres.</div></section>
   <section class="card"><h2>💼 Tu ingreso mensual</h2>
     <label class="field"><span>¿Cuánto ganas al mes, aproximadamente?</span><input class="inp num" id="bIng" inputmode="decimal" placeholder="Ej. 25000"></label>
     <div class="tiny muted" style="margin-top:6px">Sirve para calcular tu tasa de ahorro y tus indicadores.</div></section>
@@ -905,6 +944,7 @@ function terminarBienvenida() {
   const n = v => { const x = parseFloat(String(v || '').replace(/[^\d.]/g, '')); return isFinite(x) ? x : 0; };
   const cfg = JSON.parse(JSON.stringify(C())), fecha = hoy(), ahora = Date.now();
   cfg.params.ingresoRef = n($('#bIng').value); cfg.bienvenida = fecha;
+  cfg.params.nombre = $('#bNombre').value.trim().slice(0, 30); cfg.nombrePreguntado = true;
   const saldos = [];
   $$('.bRow[data-b="tar"]').forEach((r, i) => {
     const g = k => r.querySelector(`[data-k="${k}"]`).value.trim(); if (!g('nombre')) return;
@@ -1442,6 +1482,7 @@ function vInicio() {
     : `<span style="color:var(--debt)">Con lo que has recibido, este mes te faltan <b class="num">${fmt(-(R.libre - pendRec))}</b>${pendRec ? ` (contando ${fmt(pendRec)} de recurrentes pendientes)` : ''}.</span> <span class="muted">Evita gastos no esenciales hasta tu próximo ingreso.</span>`;
   const nuevo = D.movs.length < 10;
   return `
+  ${tarjetaNombre()}
   ${rachaHtml()}
   ${alertas(R)}
   ${nuevo ? dineroReal(R) : ''}
@@ -1552,6 +1593,56 @@ function vMovs() {
 }
 
 /* ---------- Análisis ---------- */
+/* ---------- Indicadores de salud financiera, explicados en lenguaje sencillo ---------- */
+const INFO_IND = {
+  ahorro: { g: 'dia', t: 'Cuánto ahorras de lo que ganas', d: 'De cada $100 que te entran este mes, cuántos te quedan después de gastar. Lo ideal es guardar al menos $20 de cada $100.', tip: 'Aparta tu ahorro en cuanto cobres, antes de gastar.' },
+  hormiga: { g: 'dia', t: 'Gastos hormiga', d: 'Lo que se va en cositas pequeñas: cafecito, antojos, snacks, apps. Una por una parecen poco, pero juntas pesan. Lo sano es menos de $5 de cada $100 que ganas.', tip: 'Prueba el reto “Sin gasto hormiga” de 7 días.' },
+  liq: { g: 'colchon', t: 'Meses que aguantas sin ingreso', d: 'Si mañana dejaras de recibir dinero, cuántos meses podrías pagar tus gastos fijos (renta, servicios…) con lo que tienes guardado y disponible. Lo sano es 3 meses o más.', tip: 'Empieza el reto “Fondo de emergencia” de 1 mes.' },
+  intIng: { g: 'deuda', t: 'Lo que se te va en intereses', d: 'De cada $100 que ganas al mes, cuántos se irían en intereses de tarjetas si solo pagas el mínimo. Es dinero que pagas sin recibir nada a cambio.', tip: 'Paga cada mes el “pago para no generar intereses”.' },
+  deudaIng: { g: 'deuda', t: 'Tu deuda de tarjetas vs. lo que ganas', d: 'Compara lo que debes en tarjetas con todo lo que ganas en un año. Vas bien si debes $15 o menos por cada $100 que ganas al año.', tip: 'Abona extra a la tarjeta con la tasa más alta.' },
+  endeud: { g: 'deuda', t: 'Lo que debes vs. lo que tienes', d: 'Compara tus deudas con todo lo que tienes ahorrado o invertido. Vas bien si por cada $100 que tienes, debes $30 o menos.', tip: 'Cada peso que bajas de deuda o subes de ahorro mejora este número.' },
+  apal: { g: 'deuda', t: 'Qué tanto de lo tuyo es prestado', d: 'Mide si lo que tienes es realmente tuyo o está “prestado” por deudas. 1x = todo es tuyo; 2x = la mitad es prestado. Lo sano es 1.5x o menos.', tip: 'Baja tus deudas antes de comprar a crédito.' }
+};
+const GRUPOS_IND = [['dia', '💰 Tu día a día', ['ahorro', 'hormiga']], ['colchon', '🛟 Tu colchón', ['liq']], ['deuda', '💳 Tus deudas', ['intIng', 'deudaIng', 'endeud', 'apal']]];
+const PRIORIDAD_IND = ['intIng', 'liq', 'deudaIng', 'ahorro', 'endeud', 'hormiga', 'apal'];
+/* Sin datos suficientes no calificamos (evita marcar "Riesgo" solo porque no has registrado nada) */
+function faltaDatoInd(id, R) {
+  const ingRef = +C().params.ingresoRef || R.ing;
+  return { ahorro: !R.ing && 'Registra tus ingresos del mes.', hormiga: !R.ing && 'Registra tus ingresos del mes.', liq: !R.fijosBase && 'Pon presupuesto a tus gastos fijos en Presupuestos.',
+    intIng: !ingRef && 'Registra tus ingresos o pon tu ingreso en ⚙️ Ajustes.', deudaIng: !ingRef && 'Registra tus ingresos o pon tu ingreso en ⚙️ Ajustes.',
+    endeud: !R.totA && !R.totP && 'Registra tus cuentas y tarjetas.', apal: !R.totA && 'Registra tus cuentas de ahorro.' }[id] || '';
+}
+/* Barrita de colores (verde · amarillo · rojo) con un punto donde estás */
+function medidor(u, v) {
+  const sano = +u.sano, riesgo = +u.riesgo, menor = u.dir === 'menor', max = (menor ? riesgo * 1.6 : sano * 1.5) || 1, p = x => Math.max(0, Math.min(100, x / max * 100));
+  const z = menor ? [['var(--inc)', p(sano)], ['var(--warn)', p(riesgo) - p(sano)], ['var(--debt)', 100 - p(riesgo)]] : [['var(--debt)', p(riesgo)], ['var(--warn)', p(sano) - p(riesgo)], ['var(--inc)', 100 - p(sano)]];
+  return `<div class="gauge" aria-hidden="true">${z.map(([c, w]) => `<i style="width:${w.toFixed(1)}%;background:${c}"></i>`).join('')}<b style="left:${p(v).toFixed(1)}%"></b></div>`;
+}
+function indicadoresHtml(R) {
+  const c = C(), us = Object.fromEntries(c.umbrales.map(u => [u.id, u])), res = {};
+  Object.keys(INFO_IND).forEach(id => { const u = us[id]; if (!u) return; const v = R.ind[id] ?? 0, falta = faltaDatoInd(id, R); res[id] = { u, v, falta, e: falta ? null : estado(u, v) }; });
+  const con = Object.values(res).filter(x => x.e), buenos = con.filter(x => x.e === 'good').length, malos = con.filter(x => x.e === 'bad').length;
+  const peor = PRIORIDAD_IND.find(id => res[id] && res[id].e === 'bad') || PRIORIDAD_IND.find(id => res[id] && res[id].e === 'warn');
+  const titulo = !con.length ? '⚪ Aún no hay datos suficientes' : malos ? '🔴 Hay focos rojos que conviene atender' : buenos === con.length ? '🟢 ¡Excelente! Tus finanzas están sanas' : '🟡 Vas bien, con detalles por cuidar';
+  const resumen = `<div class="indRes">
+    <div class="small"><b>${titulo}</b></div>
+    ${con.length ? `<div class="indPts">${PRIORIDAD_IND.filter(id => res[id] && res[id].e).map(id => `<i class="${ESTADO[res[id].e][1]}" title="${esc(INFO_IND[id].t)}"></i>`).join('')}</div>
+    <div class="tiny muted">${buenos} de ${con.length} indicadores sanos${peor ? ` · 👉 Empieza por: <b style="color:var(--ink)">${INFO_IND[peor].t.toLowerCase()}</b>` : ''}</div>` : '<div class="tiny muted">Registra tus ingresos, gastos, cuentas y tarjetas para ver tu diagnóstico.</div>'}</div>`;
+  const fila = id => {
+    const x = res[id]; if (!x) return '';
+    const i = INFO_IND[id], { u, v } = x;
+    const badge = x.e ? `<span class="badge ${ESTADO[x.e][1]}">${ESTADO[x.e][0]}</span>` : '<span class="badge s-neu">Sin datos</span>';
+    return `<div class="indRow"><div class="indTop">
+        <div class="main"><div class="small"><b>${i.t}</b> <button class="indQ" type="button" data-indq="${id}" aria-expanded="false" aria-label="¿Qué significa ${esc(i.t)}?">?</button></div>
+          <div class="sub">${x.falta ? esc(x.falta) : id === 'apal' && v >= 99 ? 'Debes más de lo que tienes.' : `Sano: ${u.dir === 'menor' ? 'hasta' : 'desde'} ${fmtInd(u.fmt, +u.sano)}`}</div></div>
+        <div class="num" style="text-align:right;flex:none"><b>${x.falta ? '—' : fmtInd(u.fmt, v)}</b><div>${badge}</div></div></div>
+      ${x.falta ? '' : medidor(u, v)}
+      <div class="indInfo" id="ii-${id}" hidden><div>${i.d}</div><div style="margin-top:6px">💡 ${i.tip}</div></div></div>`;
+  };
+  return `<section class="card"><h2>🩺 Tu salud financiera</h2>${resumen}
+    ${GRUPOS_IND.map(([, t, ids]) => `<div class="lbl">${t}</div>${ids.map(fila).join('')}`).join('')}
+    <p class="tiny muted" style="margin-top:10px">Toca <b>?</b> para ver qué significa cada uno. Los límites de “sano” y “riesgo” se cambian en ⚙️ Ajustes.</p></section>`;
+}
 function vAnalisis() {
   const R = calc(mes), c = C(), H = historia();
   const tile = (k, v, s, cls = '') => `<div class="stat ${cls}"><div class="k">${k}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ''}</div>`;
@@ -1579,7 +1670,6 @@ function vAnalisis() {
       { label: 'Gastos', data: H.slice(-12).map(r => r.g), color: css('--fix') },
       { label: 'Hormiga', data: H.slice(-12).map(r => r.h), color: css('--ant') }]);
   });
-  const ind = c.umbrales.map(u => { const v = R.ind[u.id] ?? 0, e = estado(u, v); return `<div class="row"><div class="main"><div class="small" style="font-weight:600">${esc(u.nombre)}</div><div class="sub">Sano si es ${u.dir === 'menor' ? '≤' : '≥'} ${fmtInd(u.fmt, +u.sano)}</div></div><div class="num" style="text-align:right"><b>${fmtInd(u.fmt, v)}</b><div><span class="badge ${ESTADO[e][1]}">${ESTADO[e][0]}</span></div></div></div>`; }).join('');
   const flujo = [['Ingresos', R.ing], ['📌 Gastos fijos', R.g.fijo], ['🛒 Gastos variables', R.g.variable], ['🐜 Gastos hormiga', R.g.hormiga], ['🐷 Ahorro e inversión', R.aho]];
   return `
   <div class="monthnav"><button class="icon-btn" data-mes="-1" aria-label="Mes anterior">‹</button><b>${mesNombre(mes)}</b><button class="icon-btn" data-mes="1" aria-label="Mes siguiente">›</button></div>
@@ -1591,9 +1681,7 @@ function vAnalisis() {
       ${tile('Interés tarjetas', fmt(R.interes), 'Estimado al mes con IVA', 's-debt')}
     </div>
   </section>
-  <section class="card"><h2>🩺 Indicadores de salud financiera</h2>
-    ${ind}
-    <p class="tiny muted">Puedes cambiar los umbrales en ⚙️ Ajustes. ${+c.params.ingresoRef ? '' : 'Pon tu ingreso mensual de referencia en Ajustes para medir mejor la deuda.'}</p></section>
+  ${indicadoresHtml(R)}
   <section class="card"><h2>📈 Patrimonio <span class="tiny muted">toca para ver detalle</span></h2>
     <div class="stats c3">
       <div class="stat s-sav tap" data-sub="cuentas"><div class="k">🐷 Cuentas</div><div class="v">${fmt(R.totA)}</div></div>
@@ -1852,6 +1940,7 @@ function vAjustes() {
   <section class="card"><h2>Parámetros</h2>
     <div class="two">
       <label class="field"><span>Moneda</span><select class="inp" data-cfg="params.moneda">${MONEDAS.map(m => `<option ${m === p.moneda ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
+      <label class="field"><span>Tu nombre</span>${inp('params.nombre', p.nombre, 'text')}</label>
       <label class="field"><span>Presupuesto por</span><select class="inp" data-cfg="params.periodo"><option value="mensual" ${p.periodo !== 'quincenal' ? 'selected' : ''}>Mes</option><option value="quincenal" ${p.periodo === 'quincenal' ? 'selected' : ''}>Quincena</option></select></label>
       <label class="field"><span>Ingreso mensual de referencia</span>${inp('params.ingresoRef', p.ingresoRef)}</label>
       <label class="field"><span>Tipo de cambio USD</span>${inp('params.tc', p.tc)}</label>
@@ -2610,6 +2699,7 @@ document.querySelector('.tabs').addEventListener('click', e => { const b = e.tar
 window.addEventListener('hashchange', () => { const t = location.hash.slice(1); if ((TITULOS[t] || ['cuentas', 'tarjetas', 'ahorros'].includes(t)) && t !== (tab === 'analisis' && subA !== 'resumen' ? subA : tab)) irA(t); });
 $('#fab').onclick = () => abrirRegistro();
 $('#btnCfg').onclick = () => irA(tab === 'ajustes' ? 'inicio' : 'ajustes');
+$('#title').onclick = () => { if (tab === 'inicio') pedirNombre(); };
 
 const view = $('#view');
 view.addEventListener('input', e => {
@@ -2645,6 +2735,7 @@ view.addEventListener('click', e => {
   if (d.edit && d.edit.startsWith('msi:')) return editMSI(d.edit.split(':')[1]);
   if (d.edit) return openMov({ id: d.edit });
   if (d.editmsi) return editMSI(d.editmsi);
+  if (d.indq) { const x = document.getElementById('ii-' + d.indq); if (x) { x.hidden = !x.hidden; el.setAttribute('aria-expanded', String(!x.hidden)); el.classList.toggle('on', !x.hidden); } return; }
   if (d.go) return irA(d.go);
   if (d.sub) { subA = d.sub; return irA('analisis'); }
   if (d.filtro) { filtro = d.filtro; return rerender(); }
